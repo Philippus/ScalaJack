@@ -4,10 +4,10 @@ package typeadapter
 import java.lang.reflect.Method
 
 import scala.util.Try
-import scala.language.{ existentials, reflectiveCalls }
+import scala.language.existentials
 import scala.reflect.api.{ Mirror, Universe }
 import scala.reflect.runtime.{ currentMirror, universe }
-import scala.reflect.runtime.universe.{ ClassSymbol, MethodMirror, MethodSymbol, NoType, Symbol, TermName, Type, TypeTag, appliedType, typeOf }
+import scala.reflect.runtime.universe._
 
 trait ClassFieldMember[Owner, T] extends ClassLikeTypeAdapter.FieldMember[Owner] {
   def dbKeyIndex: Option[Int]
@@ -149,17 +149,17 @@ object CaseClassTypeAdapter extends TypeAdapterFactory.FromClassSymbol {
         // Exctract DBKey annotation if present
         val optionalDbKeyIndex = member.annotations.find(_.tree.tpe =:= typeOf[DBKey])
           .map { index =>
-            if (index.tree.children.size > 1)
-              index.tree.children(1).productElement(1).asInstanceOf[scala.reflect.internal.Trees$Literal].value().value
-            else
+            if (index.tree.children.size > 1) {
+              index.tree.children(1).productElement(1).asInstanceOf[scala.reflect.internal.Trees#Literal].value.value.asInstanceOf[Int]
+            } else
               0
           }.asInstanceOf[Option[Int]]
 
         // Extract MapName annotation if present
         val optionalMapName = member.annotations.find(_.tree.tpe =:= typeOf[MapName])
-          .map { index =>
-            index.tree.children(1).productElement(1).asInstanceOf[scala.reflect.internal.Trees$Literal].value().value
-          }.asInstanceOf[Option[String]]
+          .map(
+            _.tree.children(1).productElement(1).asInstanceOf[scala.reflect.internal.Trees#Literal].value.value.asInstanceOf[String]
+          )
 
         val memberTypeAdapter = context.typeAdapter(memberType).asInstanceOf[TypeAdapter[Any]]
         FieldMember[T, Any](index, memberName, memberType, memberTypeAdapter, declaredMemberType, accessorMethodSymbol, accessorMethod, derivedValueClassConstructorMirror, defaultValueAccessorMirror, memberClass, optionalDbKeyIndex, optionalMapName, member.annotations)
@@ -167,8 +167,9 @@ object CaseClassTypeAdapter extends TypeAdapterFactory.FromClassSymbol {
 
       // Exctract Collection name annotation if present
       val collectionAnnotation = classSymbol.annotations.find(_.tree.tpe =:= typeOf[Collection])
-        .map(_.tree.children(1).productElement(1).asInstanceOf[scala.reflect.internal.Trees$Literal]
-          .value().value).asInstanceOf[Option[String]]
+        .map(
+          _.tree.children(1).productElement(1).asInstanceOf[scala.reflect.internal.Trees#Literal].value.value.asInstanceOf[String]
+        )
 
       CaseClassTypeAdapter[T](
         context,

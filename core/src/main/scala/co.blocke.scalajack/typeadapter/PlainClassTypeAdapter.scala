@@ -8,7 +8,7 @@ import co.blocke.scalajack.typeadapter.CaseClassTypeAdapter.FieldMember
 import co.blocke.scalajack.typeadapter.PlainClassTypeAdapter.PlainFieldMember
 
 import scala.collection.mutable
-import scala.language.{ existentials, reflectiveCalls }
+import scala.language.existentials
 import scala.reflect.api.{ Mirror, Universe }
 import scala.reflect.runtime.{ currentMirror, universe }
 import scala.reflect.runtime.universe._
@@ -134,13 +134,18 @@ object PlainClassTypeAdapter extends TypeAdapterFactory.FromClassSymbol {
 
               // Exctract DBKey annotation if present
               val dbkeyAnnotation = member.annotations.find(_.tree.tpe =:= typeOf[DBKey])
-                .map(_.tree.children(1).productElement(1).asInstanceOf[scala.reflect.internal.Trees$Literal]
-                  .value().value).asInstanceOf[Option[Int]]
+                .map { index =>
+                  if (index.tree.children.size > 1) {
+                    index.tree.children(1).productElement(1).asInstanceOf[scala.reflect.internal.Trees#Literal].value.value.asInstanceOf[Int]
+                  } else
+                    0
+                }.asInstanceOf[Option[Int]]
 
               // Exctract MapName annotation if present
               val mapNameAnnotation = member.annotations.find(_.tree.tpe =:= typeOf[MapName])
-                .map(_.tree.children(1).productElement(1).asInstanceOf[scala.reflect.internal.Trees$Literal]
-                  .value().value).asInstanceOf[Option[String]]
+                .map(
+                  _.tree.children(1).productElement(1).asInstanceOf[scala.reflect.internal.Trees#Literal].value.value.asInstanceOf[String]
+                )
 
               val memberTypeAdapter = context.typeAdapter(memberType).asInstanceOf[TypeAdapter[Any]]
               FieldMember[T, Any](index, memberName, memberType, memberTypeAdapter, memberType /* FIXME */ , accessorMethodSymbol, accessorMethod, derivedValueClassConstructorMirror, None, memberClass, dbkeyAnnotation, mapNameAnnotation, member.annotations)
@@ -154,7 +159,7 @@ object PlainClassTypeAdapter extends TypeAdapterFactory.FromClassSymbol {
       def dontIgnore(p: Symbol) = {
         // Annoying... @Ignore may be on backing field in a superclass...so we must go find it.
         val includeSuper = tpe.members ++ tpe.typeSymbol.asClass.baseClasses.map(c => c.typeSignature.members).flatten
-        var foundPrivateVar = includeSuper.filter(z => z.isPrivate && !z.isMethod && z.name.toString.trim == p.name.toString.trim).headOption
+        val foundPrivateVar = includeSuper.filter(z => z.isPrivate && !z.isMethod && z.name.toString.trim == p.name.toString.trim).headOption
         val ignoreAnno = foundPrivateVar.flatMap(_.annotations.find(_.tree.tpe =:= typeOf[Ignore]))
         ignoreAnno.isEmpty
       }
@@ -185,13 +190,18 @@ object PlainClassTypeAdapter extends TypeAdapterFactory.FromClassSymbol {
               }
 
             // Exctract DBKey and MapName annotations if present (Note: Here the annotation is not on the getter/setter but the private backing variable!)
-            var foundPrivateVar = tpe.members.filter(z => z.isPrivate && !z.isMethod && z.name.toString.trim == p.name.toString.trim).headOption
+            val foundPrivateVar = tpe.members.filter(z => z.isPrivate && !z.isMethod && z.name.toString.trim == p.name.toString.trim).headOption
             val dbkeyAnno = foundPrivateVar.flatMap(_.annotations.find(_.tree.tpe =:= typeOf[DBKey])
-              .map(_.tree.children(1).productElement(1).asInstanceOf[scala.reflect.internal.Trees$Literal]
-                .value().value).asInstanceOf[Option[Int]])
+              .map { index =>
+                if (index.tree.children.size > 1) {
+                  index.tree.children(1).productElement(1).asInstanceOf[scala.reflect.internal.Trees#Literal].value.value.asInstanceOf[Int]
+                } else
+                  0
+              }.asInstanceOf[Option[Int]])
             val mapNameAnno = foundPrivateVar.flatMap(_.annotations.find(_.tree.tpe =:= typeOf[MapName])
-              .map(_.tree.children(1).productElement(1).asInstanceOf[scala.reflect.internal.Trees$Literal]
-                .value().value).asInstanceOf[Option[String]])
+              .map(
+                _.tree.children(1).productElement(1).asInstanceOf[scala.reflect.internal.Trees#Literal].value.value.asInstanceOf[String]
+              ))
 
             PlainFieldMember[T, Any](
               0,
@@ -235,8 +245,9 @@ object PlainClassTypeAdapter extends TypeAdapterFactory.FromClassSymbol {
 
       // Exctract Collection name annotation if present
       val collectionAnnotation = classSymbol.annotations.find(_.tree.tpe =:= typeOf[Collection])
-        .map(_.tree.children(1).productElement(1).asInstanceOf[scala.reflect.internal.Trees$Literal]
-          .value().value).asInstanceOf[Option[String]]
+        .map(
+          _.tree.children(1).productElement(1).asInstanceOf[scala.reflect.internal.Trees#Literal].value.value.asInstanceOf[String]
+        )
 
       def dbKeys[Owner](members: List[ClassFieldMember[Owner, Any]]): List[ClassFieldMember[Owner, Any]] = members.filter(_.dbKeyIndex.isDefined).sortBy(_.dbKeyIndex.get)
 
@@ -283,13 +294,13 @@ case class PlainClassTypeAdapter[T](
         val numberOfMembers = members.length
 
         val found = new mutable.BitSet(numberOfMembers)
-        var foundCount = 0
+        val foundCount = 0
 
         reader.beginObject()
 
         val asBuilt = constructorMirror.apply().asInstanceOf[T] // call 0-parameter constructor
 
-        var savedPos = reader.position
+        val savedPos = reader.position
         while (reader.hasMoreMembers) {
           val readName = memberNameTypeAdapter.read(reader)
           membersByName.get(readName) match {

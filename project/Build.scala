@@ -12,13 +12,14 @@ object Build extends Build {
 
     import Dependencies._
 
-    val scalaVer12 = "2.12.1"
+    val scalaVer13 = "2.13.0-M3"
+    val scalaVer12 = "2.12.4"
     val scalaVer = "2.11.8"
 
     lazy val basicSettings = Seq(
         organization                := "co.blocke",
         startYear                   := Some(2015),
-        crossScalaVersions          := Seq(scalaVer, scalaVer12),
+        crossScalaVersions          := Seq(scalaVer12, scalaVer13),
         publishArtifact in (Compile, packageDoc) := false,  // disable scaladoc due to bug handling annotations
         scalaVersion                := scalaVer,
         resolvers                   ++= Dependencies.resolutionRepos,
@@ -43,7 +44,7 @@ object Build extends Build {
         .settings(basicSettings: _*)
         .settings(publishArtifact := false)
         .settings(publish := { })
-        .aggregate(scalajack, scalajack_dynamodb, scalajack_mongo)
+        .aggregate(scalajack)//, scalajack_dynamodb, scalajack_mongo)
         // For gpg might need this too:
         //publishTo := Some(Resolver.file("Unused transient repository", file("target/unusedrepo")))
 
@@ -111,8 +112,8 @@ object Dependencies {
     def compile   (deps: ModuleID*): Seq[ModuleID] = deps map (_ % "compile")
     def test      (deps: ModuleID*): Seq[ModuleID] = deps map (_ % "test") 
 
-    val mongo_scala     = "org.mongodb.scala"       %% "mongo-scala-driver"   % "2.1.0"
-    val scalatest       = "org.scalatest"           %% "scalatest"            % "3.0.1"
+    val mongo_scala     = "org.mongodb.scala"       %% "mongo-scala-driver"   % "2.2.0"
+    val scalatest       = "org.scalatest"           %% "scalatest"            % "3.0.5-M1"
     val slf4j_simple    = "org.slf4j"               % "slf4j-simple"          % "1.7.25"
     val dynamo          = "com.amazonaws"           % "aws-java-sdk-dynamodb" % "1.11.43"
 }
